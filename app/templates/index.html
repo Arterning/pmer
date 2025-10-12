@@ -215,6 +215,33 @@
             document.getElementById('add-modal').classList.add('hidden');
         }
 
+        // 生成随机密码
+        function generatePassword() {
+            const length = document.getElementById('password-length').value;
+            const includeNumbers = document.getElementById('include-numbers').checked;
+            const includeSymbols = document.getElementById('include-symbols').checked;
+            
+            let chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
+            if (includeNumbers) chars += '0123456789';
+            if (includeSymbols) chars += '!@#$%^&*()_+~`|}{[]:;?><,./-=';
+            
+            let password = '';
+            for (let i = 0; i < length; i++) {
+                const randomIndex = Math.floor(Math.random() * chars.length);
+                password += chars.charAt(randomIndex);
+            }
+            
+            // 填充到密码字段
+            document.getElementById('password-value').value = password;
+            
+            // 显示密码（临时）
+            const passwordField = document.getElementById('password-value');
+            passwordField.type = 'text';
+            setTimeout(() => {
+                passwordField.type = 'password';
+            }, 3000); // 3秒后恢复为密码类型
+        }
+        
         // 页面加载完成后执行
         document.addEventListener('DOMContentLoaded', function() {
             // 检查用户是否已登录
@@ -241,6 +268,11 @@
                 btn.addEventListener('click', function() {
                     closeModal();
                 });
+            });
+            
+            // 生成密码按钮
+            document.getElementById('generate-password-btn').addEventListener('click', function() {
+                generatePassword();
             });
         });
     </script>
@@ -279,7 +311,7 @@
     
     <!-- 添加密码模态框 -->
     <div id="add-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
-        <div class="bg-gray-800 rounded-lg shadow-lg p-6 max-w-md w-full border border-gray-700">
+        <div class="bg-gray-800 rounded-lg shadow-lg p-6 max-w-2xl w-full border border-gray-700">
             <div class="flex justify-between items-center mb-4">
                 <h2 class="text-xl font-bold text-blue-400">添加新密码</h2>
                 <button class="close-modal text-gray-400 hover:text-white">&times;</button>
@@ -300,7 +332,29 @@
                 </div>
                 <div>
                     <label for="password-value" class="block text-sm font-medium text-gray-300">密码</label>
-                    <input type="password" id="password-value" class="mt-1 block w-full py-2 rounded-md bg-gray-700 border-gray-600 text-white shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:ring-opacity-30" required>
+                    <div class="flex space-x-2">
+                        <input type="password" id="password-value" class="mt-1 block w-full py-2 rounded-md bg-gray-700 border-gray-600 text-white shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:ring-opacity-30" required>
+                        <button type="button" id="generate-password-btn" class="mt-1 px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500">生成</button>
+                    </div>
+                </div>
+                <div id="password-generator" class="col-span-2 bg-gray-700 p-4 rounded-md mt-2 mb-2">
+                    <h3 class="text-sm font-medium text-gray-300 mb-3">密码生成器</h3>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label for="password-length" class="block text-sm font-medium text-gray-300">密码长度</label>
+                            <input type="number" id="password-length" min="8" max="32" value="16" class="mt-1 block w-full py-2 rounded-md bg-gray-700 border-gray-600 text-white shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:ring-opacity-30">
+                        </div>
+                        <div class="flex items-center space-x-4 mt-6">
+                            <div class="flex items-center">
+                                <input type="checkbox" id="include-numbers" class="rounded bg-gray-700 border-gray-600 text-blue-500 focus:ring-blue-500 focus:ring-opacity-30" checked>
+                                <label for="include-numbers" class="ml-2 text-sm text-gray-300">数字</label>
+                            </div>
+                            <div class="flex items-center">
+                                <input type="checkbox" id="include-symbols" class="rounded bg-gray-700 border-gray-600 text-blue-500 focus:ring-blue-500 focus:ring-opacity-30" checked>
+                                <label for="include-symbols" class="ml-2 text-sm text-gray-300">特殊符号</label>
+                            </div>
+                        </div>
+                    </div>
                 </div>
                 <div>
                     <label for="password-category" class="block text-sm font-medium text-gray-300">分类</label>
