@@ -65,7 +65,7 @@ def get_password(current_user, password_id):
         decrypted_password = decrypt_password(password.password_encrypted, master_key)
         password_data = password.to_dict()
         password_data['password'] = decrypted_password
-        return jsonify({'password': password_data}), 200
+        return jsonify(password_data), 200
     except Exception as e:
         return jsonify({'message': '解密失败，主密钥可能不正确'}), 400
 

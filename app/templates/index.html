@@ -126,6 +126,7 @@
                 }
                 
                 const data = await response.json();
+                console.log(data.password)
                 await navigator.clipboard.writeText(data.password);
                 
                 // 显示复制成功提示
@@ -188,18 +189,16 @@
                 const data = await response.json();
                 
                 // 填充表单
-                document.getElementById('passwordId').value = data.id;
-                document.getElementById('title').value = data.title || '';
-                document.getElementById('url').value = data.url || '';
-                document.getElementById('username').value = data.username || '';
-                document.getElementById('password').value = data.password || '';
-                document.getElementById('category').value = data.category || '';
-                document.getElementById('notes').value = data.notes || '';
+                // document.getElementById('edit-password-id').value = data.id;
+                document.getElementById('password-title').value = data.title || '';
+                document.getElementById('password-url').value = data.url || '';
+                document.getElementById('password-username').value = data.username || '';
+                document.getElementById('password-value').value = data.password || '';
+                document.getElementById('password-category').value = data.category || '';
+                document.getElementById('password-notes').value = data.notes || '';
                 
                 // 显示模态框
-                document.getElementById('passwordModal').classList.remove('hidden');
-                document.getElementById('modalTitle').textContent = '编辑密码';
-                document.getElementById('saveButton').textContent = '保存修改';
+                showAddModal();
             } catch (error) {
                 console.error('Error:', error);
                 alert('获取密码信息失败');
