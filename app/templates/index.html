@@ -226,6 +226,29 @@
             displayPasswords();
         }
 
+        // Toast通知函数
+        function showToast(message, type = 'success') {
+            const toast = document.createElement('div');
+            const bgColor = type === 'success' ? 'bg-green-500' : type === 'error' ? 'bg-red-500' : 'bg-blue-500';
+            toast.className = `fixed bottom-4 right-4 ${bgColor} text-white px-6 py-3 rounded-lg shadow-lg transform transition-all duration-300 z-50`;
+            toast.textContent = message;
+            document.body.appendChild(toast);
+
+            // 添加进入动画
+            setTimeout(() => {
+                toast.style.transform = 'translateY(0)';
+            }, 10);
+
+            // 3秒后移除
+            setTimeout(() => {
+                toast.style.transform = 'translateY(100px)';
+                toast.style.opacity = '0';
+                setTimeout(() => {
+                    toast.remove();
+                }, 300);
+            }, 3000);
+        }
+
         // 复制密码到剪贴板
         async function copyPassword(id) {
             const token = localStorage.getItem('token');
@@ -247,20 +270,12 @@
                 const data = await response.json();
                 console.log(data.password)
                 await navigator.clipboard.writeText(data.password);
-                
+
                 // 显示复制成功提示
-                const toast = document.createElement('div');
-                toast.className = 'fixed bottom-4 right-4 bg-green-500 text-white px-4 py-2 rounded shadow-lg';
-                toast.textContent = '密码已复制到剪贴板';
-                document.body.appendChild(toast);
-                
-                // 2秒后移除提示
-                setTimeout(() => {
-                    toast.remove();
-                }, 2000);
+                showToast('密码已复制到剪贴板', 'success');
             } catch (error) {
                 console.error('Error:', error);
-                alert('复制密码失败');
+                showToast('复制密码失败', 'error');
             }
         }
         
@@ -269,20 +284,10 @@
             if (username && username !== '-') {
                 try {
                     await navigator.clipboard.writeText(username);
-                    
-                    // 显示复制成功提示
-                    const toast = document.createElement('div');
-                    toast.className = 'fixed bottom-4 right-4 bg-green-500 text-white px-4 py-2 rounded shadow-lg';
-                    toast.textContent = '用户名已复制到剪贴板';
-                    document.body.appendChild(toast);
-                    
-                    // 2秒后移除提示
-                    setTimeout(() => {
-                        toast.remove();
-                    }, 2000);
+                    showToast('用户名已复制到剪贴板', 'success');
                 } catch (error) {
                     console.error('Error:', error);
-                    alert('复制用户名失败');
+                    showToast('复制用户名失败', 'error');
                 }
             }
         }
@@ -323,7 +328,7 @@
                 showAddModal();
             } catch (error) {
                 console.error('Error:', error);
-                alert('获取密码信息失败');
+                showToast('获取密码信息失败', 'error');
             }
         }
 
@@ -336,21 +341,21 @@
             const password = document.getElementById('password-value').value;
             const category = document.getElementById('password-category').value;
             const notes = document.getElementById('password-notes').value;
-            
+
             if (!title || !password) {
-                alert('标题和密码为必填项');
+                showToast('标题和密码为必填项', 'error');
                 return;
             }
-            
+
             const token = localStorage.getItem('token');
             const masterKey = sessionStorage.getItem('masterKey');
-            
+
             try {
                 // 判断是添加还是更新
                 const isEdit = !!id;
                 const method = isEdit ? 'PUT' : 'POST';
                 const url = isEdit ? `/api/passwords/${id}` : '/api/passwords/';
-                
+
                 const response = await fetch(url, {
                     method: method,
                     headers: {
@@ -362,11 +367,11 @@
                         title, url, username, password, category, notes
                     })
                 });
-                
+
                 const data = await response.json();
-                
+
                 if (response.ok) {
-                    alert(isEdit ? '密码更新成功' : '密码添加成功');
+                    showToast(isEdit ? '密码更新成功' : '密码添加成功', 'success');
                     // 清空表单
                     document.getElementById('add-password-form').reset();
                     // 清空编辑ID
@@ -378,10 +383,10 @@
                     // 刷新密码列表
                     fetchPasswords();
                 } else {
-                    alert(`${isEdit ? '更新' : '添加'}密码失败: ${data.message}`);
+                    showToast(`${isEdit ? '更新' : '添加'}密码失败: ${data.message}`, 'error');
                 }
             } catch (error) {
-                alert(`发生错误: ${error.message}`);
+                showToast(`发生错误: ${error.message}`, 'error');
             }
         }
 
@@ -390,9 +395,9 @@
             if (!confirm('确定要删除这个密码吗？')) {
                 return;
             }
-            
+
             const token = localStorage.getItem('token');
-            
+
             try {
                 const response = await fetch(`/api/passwords/${id}`, {
                     method: 'DELETE',
@@ -400,17 +405,17 @@
                         'Authorization': `Bearer ${token}`
                     }
                 });
-                
+
                 const data = await response.json();
-                
+
                 if (response.ok) {
-                    alert('密码删除成功');
+                    showToast('密码删除成功', 'success');
                     fetchPasswords();
                 } else {
-                    alert(`删除密码失败: ${data.message}`);
+                    showToast(`删除密码失败: ${data.message}`, 'error');
                 }
             } catch (error) {
-                alert(`发生错误: ${error.message}`);
+                showToast(`发生错误: ${error.message}`, 'error');
             }
         }
 
@@ -545,64 +550,65 @@
     </div>
     
     <!-- 添加密码模态框 -->
-    <div id="add-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
-        <div class="bg-gray-800 rounded-lg shadow-lg p-6 max-w-2xl w-full border border-gray-700">
-            <div class="flex justify-between items-center mb-4">
-                <h2 id="modal-title" class="text-xl font-bold text-blue-400">添加新密码</h2>
-                <button class="close-modal text-gray-400 hover:text-white">&times;</button>
+    <div id="add-modal" class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center hidden z-50 backdrop-blur-sm">
+        <div class="bg-gray-800 rounded-xl shadow-2xl p-8 max-w-4xl w-full mx-4 border border-gray-600">
+            <div class="flex justify-between items-center mb-6">
+                <h2 id="modal-title" class="text-2xl font-bold text-blue-400">添加新密码</h2>
+                <button class="close-modal text-gray-400 hover:text-white text-3xl leading-none">&times;</button>
             </div>
-            
-            <form id="add-password-form" class="grid grid-cols-2 gap-4">
+
+            <form id="add-password-form" class="grid grid-cols-2 gap-6">
                 <!-- 隐藏字段，用于存储编辑的密码ID -->
                 <input type="hidden" id="edit-password-id" value="">
                 <div>
-                    <label for="password-title" class="block text-sm font-medium text-gray-300">标题</label>
-                    <input type="text" id="password-title" class="mt-1 block w-full py-2 rounded-md bg-gray-700 border-gray-600 text-white shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:ring-opacity-30" required>
+                    <label for="password-title" class="block text-sm font-medium text-gray-300 mb-2">标题 <span class="text-red-400">*</span></label>
+                    <input type="text" id="password-title" class="block w-full px-4 py-3 rounded-lg bg-gray-700 border border-gray-600 text-white shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:ring-opacity-30 transition-colors" required>
                 </div>
                 <div>
-                    <label for="password-url" class="block text-sm font-medium text-gray-300">URL</label>
-                    <input type="text" id="password-url" class="mt-1 block w-full py-2 rounded-md bg-gray-700 border-gray-600 text-white shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:ring-opacity-30">
+                    <label for="password-url" class="block text-sm font-medium text-gray-300 mb-2">URL</label>
+                    <input type="text" id="password-url" class="block w-full px-4 py-3 rounded-lg bg-gray-700 border border-gray-600 text-white shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:ring-opacity-30 transition-colors">
                 </div>
                 <div>
-                    <label for="password-username" class="block text-sm font-medium text-gray-300">用户名</label>
-                    <input type="text" id="password-username" class="mt-1 block w-full py-2 rounded-md bg-gray-700 border-gray-600 text-white shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:ring-opacity-30">
+                    <label for="password-username" class="block text-sm font-medium text-gray-300 mb-2">用户名</label>
+                    <input type="text" id="password-username" class="block w-full px-4 py-3 rounded-lg bg-gray-700 border border-gray-600 text-white shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:ring-opacity-30 transition-colors">
                 </div>
                 <div>
-                    <label for="password-value" class="block text-sm font-medium text-gray-300">密码</label>
-                    <div class="flex space-x-2">
-                        <input type="password" id="password-value" class="mt-1 block w-full py-2 rounded-md bg-gray-700 border-gray-600 text-white shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:ring-opacity-30" required>
-                        <button type="button" id="generate-password-btn" class="mt-1 px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500">生成</button>
+                    <label for="password-value" class="block text-sm font-medium text-gray-300 mb-2">密码 <span class="text-red-400">*</span></label>
+                    <div class="flex gap-2">
+                        <input type="password" id="password-value" class="block w-full px-4 py-3 rounded-lg bg-gray-700 border border-gray-600 text-white shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:ring-opacity-30 transition-colors" required>
+                        <button type="button" id="generate-password-btn" class="px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors whitespace-nowrap">生成</button>
                     </div>
                 </div>
-                <div id="password-generator" class="col-span-2 bg-gray-700 p-4 rounded-md mt-2 mb-2">
-                    <h3 class="text-sm font-medium text-gray-300 mb-3">密码生成器</h3>
-                    <div class="grid grid-cols-2 gap-4">
+                <div id="password-generator" class="col-span-2 bg-gray-750 p-5 rounded-lg border border-gray-600">
+                    <h3 class="text-base font-semibold text-gray-200 mb-4">密码生成器</h3>
+                    <div class="grid grid-cols-2 gap-6">
                         <div>
-                            <label for="password-length" class="block text-sm font-medium text-gray-300">密码长度</label>
-                            <input type="number" id="password-length" min="8" max="32" value="16" class="mt-1 block w-full py-2 rounded-md bg-gray-700 border-gray-600 text-white shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:ring-opacity-30">
+                            <label for="password-length" class="block text-sm font-medium text-gray-300 mb-2">密码长度</label>
+                            <input type="number" id="password-length" min="8" max="32" value="16" class="block w-full px-4 py-3 rounded-lg bg-gray-700 border border-gray-600 text-white shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:ring-opacity-30 transition-colors">
                         </div>
-                        <div class="flex items-center space-x-4 mt-6">
+                        <div class="flex items-center gap-6 mt-8">
                             <div class="flex items-center">
-                                <input type="checkbox" id="include-numbers" class="rounded bg-gray-700 border-gray-600 text-blue-500 focus:ring-blue-500 focus:ring-opacity-30" checked>
+                                <input type="checkbox" id="include-numbers" class="w-4 h-4 rounded bg-gray-700 border-gray-600 text-blue-500 focus:ring-blue-500 focus:ring-opacity-30" checked>
                                 <label for="include-numbers" class="ml-2 text-sm text-gray-300">数字</label>
                             </div>
                             <div class="flex items-center">
-                                <input type="checkbox" id="include-symbols" class="rounded bg-gray-700 border-gray-600 text-blue-500 focus:ring-blue-500 focus:ring-opacity-30" checked>
+                                <input type="checkbox" id="include-symbols" class="w-4 h-4 rounded bg-gray-700 border-gray-600 text-blue-500 focus:ring-blue-500 focus:ring-opacity-30" checked>
                                 <label for="include-symbols" class="ml-2 text-sm text-gray-300">特殊符号</label>
                             </div>
                         </div>
                     </div>
                 </div>
                 <div>
-                    <label for="password-category" class="block text-sm font-medium text-gray-300">分类</label>
-                    <input type="text" id="password-category" class="mt-1 block w-full py-2 rounded-md bg-gray-700 border-gray-600 text-white shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:ring-opacity-30">
+                    <label for="password-category" class="block text-sm font-medium text-gray-300 mb-2">分类</label>
+                    <input type="text" id="password-category" class="block w-full px-4 py-3 rounded-lg bg-gray-700 border border-gray-600 text-white shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:ring-opacity-30 transition-colors">
                 </div>
                 <div>
-                    <label for="password-notes" class="block text-sm font-medium text-gray-300">备注</label>
-                    <textarea id="password-notes" class="mt-1 block w-full py-2 rounded-md bg-gray-700 border-gray-600 text-white shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:ring-opacity-30" rows="3"></textarea>
+                    <label for="password-notes" class="block text-sm font-medium text-gray-300 mb-2">备注</label>
+                    <textarea id="password-notes" class="block w-full px-4 py-3 rounded-lg bg-gray-700 border border-gray-600 text-white shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:ring-opacity-30 transition-colors" rows="3"></textarea>
                 </div>
-                <div>
-                    <button type="submit" class="w-full py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">保存</button>
+                <div class="col-span-2 flex justify-end gap-3 mt-4">
+                    <button type="button" class="close-modal px-6 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 transition-colors">取消</button>
+                    <button type="submit" class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors">保存</button>
                 </div>
             </form>
         </div>
