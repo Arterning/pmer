@@ -29,6 +29,12 @@
         }
     </style>
     <script>
+        // 全局变量
+        let allPasswords = [];
+        let currentCategory = 'all';
+        let currentPage = 1;
+        const itemsPerPage = 10;
+
         // 检查用户是否已登录
         function checkAuth() {
             const token = localStorage.getItem('token');
@@ -43,7 +49,7 @@
         // 获取所有密码
         async function fetchPasswords() {
             const token = localStorage.getItem('token');
-            
+
             try {
                 const response = await fetch('/api/passwords/', {
                     method: 'GET',
@@ -51,11 +57,13 @@
                         'Authorization': `Bearer ${token}`
                     }
                 });
-                
+
                 const data = await response.json();
-                
+
                 if (response.ok) {
-                    displayPasswords(data.passwords);
+                    allPasswords = data.passwords;
+                    displayCategories();
+                    displayPasswords();
                 } else {
                     alert(`获取密码失败: ${data.message}`);
                     if (response.status === 401) {
@@ -67,16 +75,75 @@
             }
         }
 
+        // 显示所有分类
+        function displayCategories() {
+            const categoryList = document.getElementById('category-list');
+            categoryList.innerHTML = '';
+
+            // 提取所有唯一分类
+            const categories = ['all', ...new Set(allPasswords.map(p => p.category).filter(c => c))];
+
+            categories.forEach(category => {
+                const li = document.createElement('li');
+                const displayName = category === 'all' ? '全部' : category;
+                const count = category === 'all' ? allPasswords.length : allPasswords.filter(p => p.category === category).length;
+
+                li.className = `px-4 py-3 cursor-pointer hover:bg-gray-700 rounded transition-colors ${currentCategory === category ? 'bg-gray-700 border-l-4 border-blue-500' : ''}`;
+                li.innerHTML = `
+                    <div class="flex justify-between items-center">
+                        <span class="text-gray-200">${displayName}</span>
+                        <span class="bg-gray-600 text-gray-300 text-xs px-2 py-1 rounded-full">${count}</span>
+                    </div>
+                `;
+                li.onclick = () => selectCategory(category);
+                categoryList.appendChild(li);
+            });
+        }
+
+        // 选择分类
+        function selectCategory(category) {
+            currentCategory = category;
+            currentPage = 1;
+            displayCategories();
+            displayPasswords();
+        }
+
+        // 获取过滤后的密码列表
+        function getFilteredPasswords() {
+            if (currentCategory === 'all') {
+                return allPasswords;
+            }
+            return allPasswords.filter(p => p.category === currentCategory);
+        }
+
+        // 获取当前页的密码
+        function getPaginatedPasswords() {
+            const filtered = getFilteredPasswords();
+            const startIndex = (currentPage - 1) * itemsPerPage;
+            const endIndex = startIndex + itemsPerPage;
+            return filtered.slice(startIndex, endIndex);
+        }
+
+        // 计算总页数
+        function getTotalPages() {
+            const filtered = getFilteredPasswords();
+            return Math.ceil(filtered.length / itemsPerPage);
+        }
+
         // 显示密码列表
-        function displayPasswords(passwords) {
+        function displayPasswords() {
             const passwordList = document.getElementById('password-list');
             passwordList.innerHTML = '';
-            
-            if (passwords.length === 0) {
+
+            const passwords = getPaginatedPasswords();
+            const filtered = getFilteredPasswords();
+
+            if (filtered.length === 0) {
                 passwordList.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-gray-400">没有保存的密码</td></tr>';
+                updatePagination();
                 return;
             }
-            
+
             passwords.forEach(password => {
                 const row = document.createElement('tr');
                 row.className = 'border-b border-gray-700 hover:bg-gray-700';
@@ -105,6 +172,48 @@
                 `;
                 passwordList.appendChild(row);
             });
+
+            updatePagination();
+        }
+
+        // 更新分页控件
+        function updatePagination() {
+            const pagination = document.getElementById('pagination');
+            const totalPages = getTotalPages();
+            const filtered = getFilteredPasswords();
+
+            if (totalPages <= 1) {
+                pagination.innerHTML = '';
+                return;
+            }
+
+            let html = '<div class="flex items-center space-x-2">';
+
+            // 上一页按钮
+            if (currentPage > 1) {
+                html += `<button onclick="changePage(${currentPage - 1})" class="px-3 py-1 bg-gray-700 text-gray-200 rounded hover:bg-gray-600">上一页</button>`;
+            } else {
+                html += `<button disabled class="px-3 py-1 bg-gray-800 text-gray-500 rounded cursor-not-allowed">上一页</button>`;
+            }
+
+            // 页码显示
+            html += `<span class="text-gray-300">第 ${currentPage} / ${totalPages} 页 (共 ${filtered.length} 条)</span>`;
+
+            // 下一页按钮
+            if (currentPage < totalPages) {
+                html += `<button onclick="changePage(${currentPage + 1})" class="px-3 py-1 bg-gray-700 text-gray-200 rounded hover:bg-gray-600">下一页</button>`;
+            } else {
+                html += `<button disabled class="px-3 py-1 bg-gray-800 text-gray-500 rounded cursor-not-allowed">下一页</button>`;
+            }
+
+            html += '</div>';
+            pagination.innerHTML = html;
+        }
+
+        // 切换页码
+        function changePage(page) {
+            currentPage = page;
+            displayPasswords();
         }
 
         // 复制密码到剪贴板
@@ -364,31 +473,49 @@
 <body class="bg-gray-900 text-gray-200 min-h-screen">
     <!-- 密码管理容器 -->
     <div id="password-container" class="container mx-auto px-4 py-8">
-        <div class="bg-gray-800 rounded-lg shadow-lg p-6 border border-gray-700">
-            <div class="flex justify-between items-center mb-6">
-                <h1 class="text-2xl font-bold text-blue-400">PMER 密码管理器</h1>
-                <button id="logout-btn" class="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700">退出登录</button>
+        <!-- 页面标题和退出按钮 -->
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-3xl font-bold text-blue-400">PMER 密码管理器</h1>
+            <button id="logout-btn" class="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700">退出登录</button>
+        </div>
+
+        <!-- 主内容区域 -->
+        <div class="flex gap-6">
+            <!-- 左侧分类导航栏 -->
+            <div class="w-64 bg-gray-800 rounded-lg shadow-lg p-4 border border-gray-700 h-fit">
+                <h2 class="text-lg font-semibold text-blue-400 mb-4">密码分类</h2>
+                <ul id="category-list" class="space-y-2">
+                    <!-- 分类列表将通过JavaScript动态生成 -->
+                </ul>
             </div>
-            
-            <div class="mb-6">
-                <button id="add-password-btn" class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">添加新密码</button>
-            </div>
-            
-            <div class="overflow-x-auto">
-                <table class="min-w-full bg-gray-800 border border-gray-700 rounded-lg">
-                    <thead>
-                        <tr class="bg-gray-700 text-left">
-                            <th class="py-3 px-4 font-semibold">标题</th>
-                            <th class="py-3 px-4 font-semibold">URL</th>
-                            <th class="py-3 px-4 font-semibold">用户名</th>
-                            <th class="py-3 px-4 font-semibold">分类</th>
-                            <th class="py-3 px-4 font-semibold">操作</th>
-                        </tr>
-                    </thead>
-                    <tbody id="password-list">
-                        <!-- 密码列表将通过JavaScript动态生成 -->
-                    </tbody>
-                </table>
+
+            <!-- 右侧密码列表 -->
+            <div class="flex-1 bg-gray-800 rounded-lg shadow-lg p-6 border border-gray-700">
+                <div class="mb-6">
+                    <button id="add-password-btn" class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">添加新密码</button>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="min-w-full bg-gray-800 border border-gray-700 rounded-lg">
+                        <thead>
+                            <tr class="bg-gray-700 text-left">
+                                <th class="py-3 px-4 font-semibold">标题</th>
+                                <th class="py-3 px-4 font-semibold">URL</th>
+                                <th class="py-3 px-4 font-semibold">用户名</th>
+                                <th class="py-3 px-4 font-semibold">分类</th>
+                                <th class="py-3 px-4 font-semibold">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="password-list">
+                            <!-- 密码列表将通过JavaScript动态生成 -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- 分页控件 -->
+                <div id="pagination" class="mt-6 flex justify-center">
+                    <!-- 分页控件将通过JavaScript动态生成 -->
+                </div>
             </div>
         </div>
     </div>
