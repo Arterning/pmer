@@ -147,9 +147,19 @@
             passwords.forEach(password => {
                 const row = document.createElement('tr');
                 row.className = 'border-b border-gray-700 hover:bg-gray-700';
+
+                // URL图标HTML
+                const urlIcon = password.url ? `
+                    <a href="${password.url}" target="_blank" rel="noopener noreferrer" class="text-blue-400 hover:text-blue-300 inline-flex items-center" title="${password.url}">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                        </svg>
+                    </a>
+                ` : '<span class="text-gray-500">-</span>';
+
                 row.innerHTML = `
                     <td class="py-3 px-4">${password.title}</td>
-                    <td class="py-3 px-4 cursor-pointer"><a href=${password.url || '-'}>${password.url || '-'}</a></td>
+                    <td class="py-3 px-4 text-center">${urlIcon}</td>
                     <td class="py-3 px-4 cursor-pointer" onclick="copyUsername('${password.username || '-'}')" title="点击复制用户名">${password.username || '-'}</td>
                     <td class="py-3 px-4">${password.category || '-'}</td>
                     <td class="py-3 px-4 flex space-x-3">
