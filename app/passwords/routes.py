@@ -40,7 +40,7 @@ def decrypt_password(encrypted_password, master_key):
 
 @passwords_bp.route('/', methods=['GET'])
 @token_required
-def get_all_passwords(current_user):
+def get_all_passwords(current_user, master_key):
     """获取用户的所有密码条目"""
     passwords = Password.query.filter_by(user_id=current_user.id).all()
     return jsonify({
@@ -49,18 +49,17 @@ def get_all_passwords(current_user):
 
 @passwords_bp.route('/<int:password_id>', methods=['GET'])
 @token_required
-def get_password(current_user, password_id):
+def get_password(current_user, master_key, password_id):
     """获取特定密码条目"""
     password = Password.query.filter_by(id=password_id, user_id=current_user.id).first()
-    
+
     if not password:
         return jsonify({'message': '密码条目不存在'}), 404
-    
-    # 需要主密钥来解密密码
-    master_key = request.headers.get('X-Master-Key')
+
+    # 使用从JWT中获取的master_key来解密密码
     if not master_key:
-        return jsonify({'message': '缺少主密钥'}), 400
-    
+        return jsonify({'message': '缺少主密钥，请重新登录'}), 400
+
     try:
         decrypted_password = decrypt_password(password.password_encrypted, master_key)
         password_data = password.to_dict()
@@ -71,23 +70,22 @@ def get_password(current_user, password_id):
 
 @passwords_bp.route('/', methods=['POST'])
 @token_required
-def create_password(current_user):
+def create_password(current_user, master_key):
     """创建新的密码条目"""
     data = request.get_json()
-    
+
     # 验证必要字段
     if not all(k in data for k in ('title', 'password')):
         return jsonify({'message': '缺少必要字段'}), 400
-    
-    # 需要主密钥来加密密码
-    master_key = request.headers.get('X-Master-Key')
+
+    # 使用从JWT中获取的master_key来加密密码
     if not master_key:
-        return jsonify({'message': '缺少主密钥'}), 400
-    
+        return jsonify({'message': '缺少主密钥，请重新登录'}), 400
+
     try:
         # 加密密码
         encrypted_password = encrypt_password(data['password'], master_key)
-        
+
         # 创建新密码条目
         new_password = Password(
             title=data['title'],
@@ -98,10 +96,10 @@ def create_password(current_user):
             notes=data.get('notes', ''),
             user_id=current_user.id
         )
-        
+
         db.session.add(new_password)
         db.session.commit()
-        
+
         return jsonify({
             'message': '密码条目创建成功',
             'password': new_password.to_dict()
@@ -113,27 +111,26 @@ def create_password(current_user):
 
 @passwords_bp.route('/<int:password_id>', methods=['PUT'])
 @token_required
-def update_password(current_user, password_id):
+def update_password(current_user, master_key, password_id):
     """更新密码条目"""
     password = Password.query.filter_by(id=password_id, user_id=current_user.id).first()
-    
+
     if not password:
         return jsonify({'message': '密码条目不存在'}), 404
-    
+
     data = request.get_json()
-    
+
     # 如果更新密码字段，需要主密钥
     if 'password' in data:
-        master_key = request.headers.get('X-Master-Key')
         if not master_key:
-            return jsonify({'message': '缺少主密钥'}), 400
-        
+            return jsonify({'message': '缺少主密钥，请重新登录'}), 400
+
         try:
             encrypted_password = encrypt_password(data['password'], master_key)
             password.password_encrypted = encrypted_password
         except Exception as e:
             return jsonify({'message': '加密失败，主密钥可能不正确'}), 400
-    
+
     # 更新其他字段
     if 'title' in data:
         password.title = data['title']
@@ -145,9 +142,9 @@ def update_password(current_user, password_id):
         password.category = data['category']
     if 'notes' in data:
         password.notes = data['notes']
-    
+
     db.session.commit()
-    
+
     return jsonify({
         'message': '密码条目更新成功',
         'password': password.to_dict()
@@ -155,21 +152,21 @@ def update_password(current_user, password_id):
 
 @passwords_bp.route('/<int:password_id>', methods=['DELETE'])
 @token_required
-def delete_password(current_user, password_id):
+def delete_password(current_user, master_key, password_id):
     """删除密码条目"""
     password = Password.query.filter_by(id=password_id, user_id=current_user.id).first()
-    
+
     if not password:
         return jsonify({'message': '密码条目不存在'}), 404
-    
+
     db.session.delete(password)
     db.session.commit()
-    
+
     return jsonify({'message': '密码条目删除成功'}), 200
 
 @passwords_bp.route('/categories', methods=['GET'])
 @token_required
-def get_categories(current_user):
+def get_categories(current_user, master_key):
     """获取用户的所有密码分类"""
     categories = db.session.query(Password.category).filter_by(user_id=current_user.id).distinct().all()
     return jsonify({

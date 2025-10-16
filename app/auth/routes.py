@@ -13,20 +13,24 @@ def token_required(f):
         token = None
         if 'Authorization' in request.headers:
             token = request.headers['Authorization'].split(' ')[1]
-        
+
         if not token:
             return jsonify({'message': '缺少认证令牌'}), 401
-        
+
         try:
             data = jwt.decode(token, current_app.config['SECRET_KEY'], algorithms=['HS256'])
             current_user = User.query.get(data['user_id'])
             if not current_user:
                 return jsonify({'message': '无效的用户'}), 401
+
+            # 从JWT中提取master_key（如果存在）
+            master_key = data.get('master_key')
         except:
             return jsonify({'message': '无效的令牌'}), 401
-        
-        return f(current_user, *args, **kwargs)
-    
+
+        # 将master_key作为参数传递给被装饰的函数
+        return f(current_user, master_key, *args, **kwargs)
+
     return decorated
 
 @auth_bp.route('/register', methods=['POST'])
@@ -59,27 +63,28 @@ def register():
 @auth_bp.route('/login', methods=['POST'])
 def login():
     data = request.get_json()
-    
+
     # 验证必要字段
     if not all(k in data for k in ('username', 'password')):
         return jsonify({'message': '缺少必要字段'}), 400
-    
+
     # 查找用户
     user = User.query.filter_by(username=data['username']).first()
-    
+
     # 验证用户和密码
     if not user or not user.check_password(data['password']):
         return jsonify({'message': '用户名或密码错误'}), 401
-    
-    # 生成主密钥（不返回给客户端，仅用于加密会话）
+
+    # 生成主密钥并加密存入JWT
     master_key = user.generate_master_key(data['password'])
-    
-    # 生成JWT令牌
+
+    # 生成JWT令牌，包含加密的master_key
     token = jwt.encode({
         'user_id': user.id,
+        'master_key': master_key,  # 将master_key加密存储在JWT中
         'exp': datetime.utcnow() + timedelta(hours=24)
     }, current_app.config['SECRET_KEY'], algorithm='HS256')
-    
+
     return jsonify({
         'message': '登录成功',
         'token': token,
@@ -88,24 +93,24 @@ def login():
 
 @auth_bp.route('/profile', methods=['GET'])
 @token_required
-def get_profile(current_user):
+def get_profile(current_user, master_key):
     return jsonify({'user': current_user.to_dict()}), 200
 
 @auth_bp.route('/change-password', methods=['PUT'])
 @token_required
-def change_password(current_user):
+def change_password(current_user, master_key):
     data = request.get_json()
-    
+
     # 验证必要字段
     if not all(k in data for k in ('old_password', 'new_password')):
         return jsonify({'message': '缺少必要字段'}), 400
-    
+
     # 验证旧密码
     if not current_user.check_password(data['old_password']):
         return jsonify({'message': '旧密码错误'}), 401
-    
+
     # 更新密码
     current_user.set_password(data['new_password'])
     db.session.commit()
-    
+
     return jsonify({'message': '密码修改成功'}), 200

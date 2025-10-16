@@ -252,21 +252,19 @@
         // 复制密码到剪贴板
         async function copyPassword(id) {
             const token = localStorage.getItem('token');
-            const masterKey = sessionStorage.getItem('masterKey');
-            
+
             try {
                 const response = await fetch(`/api/passwords/${id}`, {
                     method: 'GET',
                     headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'X-Master-Key': masterKey
+                        'Authorization': `Bearer ${token}`
                     }
                 });
-                
+
                 if (!response.ok) {
                     throw new Error('Failed to fetch password');
                 }
-                
+
                 const data = await response.json();
                 console.log(data.password)
                 await navigator.clipboard.writeText(data.password);
@@ -295,21 +293,19 @@
         // 显示编辑模态框
         async function showEditModal(id) {
             const token = localStorage.getItem('token');
-            const masterKey = sessionStorage.getItem('masterKey');
-            
+
             try {
                 const response = await fetch(`/api/passwords/${id}`, {
                     method: 'GET',
                     headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'X-Master-Key': masterKey
+                        'Authorization': `Bearer ${token}`
                     }
                 });
-                
+
                 if (!response.ok) {
                     throw new Error('Failed to fetch password');
                 }
-                
+
                 const data = await response.json();
                 
                 // 填充表单
@@ -348,7 +344,6 @@
             }
 
             const token = localStorage.getItem('token');
-            const masterKey = sessionStorage.getItem('masterKey');
 
             try {
                 // 判断是添加还是更新
@@ -360,8 +355,7 @@
                     method: method,
                     headers: {
                         'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json',
-                        'X-Master-Key': masterKey
+                        'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
                         title, url, username, password, category, notes
@@ -422,7 +416,6 @@
         // 退出登录
         function logout() {
             localStorage.removeItem('token');
-            sessionStorage.removeItem('masterKey');
             window.location.href = '/auth';
         }
 
