@@ -55,37 +55,35 @@ class User(db.Model):
 
 class Password(db.Model):
     __tablename__ = 'passwords'
-    
+
     id = db.Column(db.Integer, primary_key=True)
-    title = db.Column(db.String(128), nullable=False)
-    url = db.Column(db.String(256))
-    username = db.Column(db.String(128))
-    password_encrypted = db.Column(db.Text, nullable=False)  # 加密后的密码
-    category = db.Column(db.String(64))
-    notes = db.Column(db.Text)
+    encrypted_data = db.Column(db.Text, nullable=False)  # 加密的JSON数据（包含title, url, username, password, notes）
+    category = db.Column(db.String(64))  # 明文分类，用于筛选
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    
+
     # 外键关联
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    
-    def __init__(self, title, url, username, encrypted_password, category, notes, user_id):
-        self.title = title
-        self.url = url
-        self.username = username
-        self.password_encrypted = encrypted_password
+
+    def __init__(self, encrypted_data, category, user_id):
+        self.encrypted_data = encrypted_data
         self.category = category
-        self.notes = notes
         self.user_id = user_id
-    
-    def to_dict(self):
-        return {
+
+    def to_dict(self, decrypted_data=None):
+        """
+        返回字典形式的密码条目
+        如果提供了解密数据，则包含解密后的字段
+        """
+        base_dict = {
             'id': self.id,
-            'title': self.title,
-            'url': self.url,
-            'username': self.username,
             'category': self.category,
-            'notes': self.notes,
             'created_at': self.created_at.isoformat(),
             'updated_at': self.updated_at.isoformat()
         }
+
+        # 如果提供了解密数据，合并进去
+        if decrypted_data:
+            base_dict.update(decrypted_data)
+
+        return base_dict
