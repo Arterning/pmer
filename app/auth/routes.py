@@ -3,6 +3,7 @@ from app import db
 from app.models import User
 from app.auth import auth_bp
 import jwt
+import os
 from datetime import datetime, timedelta
 from functools import wraps
 
@@ -35,29 +36,34 @@ def token_required(f):
 
 @auth_bp.route('/register', methods=['POST'])
 def register():
+    # 检查是否允许注册
+    allow_registration = os.getenv('ALLOW_REGISTRATION', 'false').lower() == 'true'
+    if not allow_registration:
+        return jsonify({'message': '当前暂不开放注册'}), 403
+
     data = request.get_json()
-    
+
     # 验证必要字段
     if not all(k in data for k in ('username', 'email', 'password')):
         return jsonify({'message': '缺少必要字段'}), 400
-    
+
     # 检查用户名和邮箱是否已存在
     if User.query.filter_by(username=data['username']).first():
         return jsonify({'message': '用户名已存在'}), 400
-    
+
     if User.query.filter_by(email=data['email']).first():
         return jsonify({'message': '邮箱已存在'}), 400
-    
+
     # 创建新用户
     new_user = User(
         username=data['username'],
         email=data['email'],
         password=data['password']
     )
-    
+
     db.session.add(new_user)
     db.session.commit()
-    
+
     return jsonify({'message': '注册成功', 'user': new_user.to_dict()}), 201
 
 @auth_bp.route('/login', methods=['POST'])
