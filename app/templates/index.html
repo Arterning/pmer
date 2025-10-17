@@ -495,9 +495,15 @@
 <body class="bg-gray-900 text-gray-200 min-h-screen">
     <!-- 密码管理容器 -->
     <div id="password-container" class="container mx-auto px-4 py-8">
-        <!-- 页面标题和退出按钮 -->
+        <!-- 页面标题和导航 -->
         <div class="flex justify-between items-center mb-6">
-            <h1 class="text-3xl font-bold text-blue-400">PMER 密码管理器</h1>
+            <div class="flex items-center space-x-4">
+                <h1 class="text-3xl font-bold text-blue-400">PMER 密码管理器</h1>
+                <div class="flex space-x-2">
+                    <a href="/" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors">密码管理</a>
+                    <a href="/commands" class="px-4 py-2 bg-gray-700 text-white rounded hover:bg-gray-600 transition-colors">命令管理</a>
+                </div>
+            </div>
             <button id="logout-btn" class="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700">退出登录</button>
         </div>
 

@@ -11,3 +11,8 @@ def index():
 def auth():
     """渲染登录/注册页面"""
     return render_template('auth.html')
+
+@main_bp.route('/commands')
+def commands():
+    """渲染命令管理页面"""
+    return render_template('commands.html')

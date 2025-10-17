@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PMER - 命令管理器</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        dark: {
+                            100: '#1a1a1a',
+                            200: '#2d2d2d',
+                            300: '#3d3d3d',
+                            400: '#4d4d4d',
+                            500: '#5c5c5c'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+    </style>
+    <script>
+        // 全局变量
+        let allCommands = [];
+        let currentType = 'all';
+        let currentPage = 1;
+        const itemsPerPage = 10;
+
+        // 检查用户是否已登录
+        function checkAuth() {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                window.location.href = '/auth';
+            } else {
+                fetchCommands();
+            }
+        }
+
+        // 获取所有命令
+        async function fetchCommands() {
+            const token = localStorage.getItem('token');
+
+            try {
+                const response = await fetch('/api/commands/', {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    allCommands = data.commands;
+                    displayTypes();
+                    displayCommands();
+                } else {
+                    alert(`获取命令失败: ${data.message}`);
+                    if (response.status === 401) {
+                        logout();
+                    }
+                }
+            } catch (error) {
+                alert(`发生错误: ${error.message}`);
+            }
+        }
+
+        // 显示所有类型
+        function displayTypes() {
+            const typeList = document.getElementById('type-list');
+            typeList.innerHTML = '';
+
+            const types = ['all', ...new Set(allCommands.map(c => c.command_type).filter(t => t))];
+
+            types.forEach(type => {
+                const li = document.createElement('li');
+                const displayName = type === 'all' ? '全部' : type;
+                const count = type === 'all' ? allCommands.length : allCommands.filter(c => c.command_type === type).length;
+
+                li.className = `px-4 py-3 cursor-pointer hover:bg-gray-700 rounded transition-colors ${currentType === type ? 'bg-gray-700 border-l-4 border-blue-500' : ''}`;
+                li.innerHTML = `
+                    <div class="flex justify-between items-center">
+                        <span class="text-gray-200">${displayName}</span>
+                        <span class="bg-gray-600 text-gray-300 text-xs px-2 py-1 rounded-full">${count}</span>
+                    </div>
+                `;
+                li.onclick = () => selectType(type);
+                typeList.appendChild(li);
+            });
+        }
+
+        // 选择类型
+        function selectType(type) {
+            currentType = type;
+            currentPage = 1;
+            displayTypes();
+            displayCommands();
+        }
+
+        // 获取过滤后的命令列表
+        function getFilteredCommands() {
+            if (currentType === 'all') {
+                return allCommands;
+            }
+            return allCommands.filter(c => c.command_type === currentType);
+        }
+
+        // 获取当前页的命令
+        function getPaginatedCommands() {
+            const filtered = getFilteredCommands();
+            const startIndex = (currentPage - 1) * itemsPerPage;
+            const endIndex = startIndex + itemsPerPage;
+            return filtered.slice(startIndex, endIndex);
+        }
+
+        // 计算总页数
+        function getTotalPages() {
+            const filtered = getFilteredCommands();
+            return Math.ceil(filtered.length / itemsPerPage);
+        }
+
+        // 显示命令列表
+        function displayCommands() {
+            const commandList = document.getElementById('command-list');
+            commandList.innerHTML = '';
+
+            const commands = getPaginatedCommands();
+            const filtered = getFilteredCommands();
+
+            if (filtered.length === 0) {
+                commandList.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-gray-400">没有保存的命令</td></tr>';
+                updatePagination();
+                return;
+            }
+
+            commands.forEach(command => {
+                const row = document.createElement('tr');
+                row.className = 'border-b border-gray-700 hover:bg-gray-700';
+
+                // 截取命令文本用于预览
+                const commandPreview = command.command_text.length > 50
+                    ? command.command_text.substring(0, 50) + '...'
+                    : command.command_text;
+
+                row.innerHTML = `
+                    <td class="py-3 px-4">${command.name}</td>
+                    <td class="py-3 px-4">${command.command_type || '-'}</td>
+                    <td class="py-3 px-4 font-mono text-sm cursor-pointer" onclick="copyCommand('${command.id}')" title="点击复制命令\n\n${command.command_text}">${commandPreview}</td>
+                    <td class="py-3 px-4 text-sm text-gray-400">${new Date(command.created_at).toLocaleDateString('zh-CN')}</td>
+                    <td class="py-3 px-4 flex space-x-3">
+                        <button onclick="copyCommand('${command.id}')" class="text-blue-400 hover:text-blue-300" title="复制命令">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+                            </svg>
+                        </button>
+                        <button onclick="showEditModal(${command.id})" class="text-green-400 hover:text-green-300" title="编辑">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                            </svg>
+                        </button>
+                        <button onclick="deleteCommand(${command.id})" class="text-red-400 hover:text-red-300" title="删除">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                        </button>
+                    </td>
+                `;
+                commandList.appendChild(row);
+            });
+
+            updatePagination();
+        }
+
+        // 更新分页控件
+        function updatePagination() {
+            const pagination = document.getElementById('pagination');
+            const totalPages = getTotalPages();
+            const filtered = getFilteredCommands();
+
+            if (totalPages <= 1) {
+                pagination.innerHTML = '';
+                return;
+            }
+
+            let html = '<div class="flex items-center space-x-2">';
+
+            if (currentPage > 1) {
+                html += `<button onclick="changePage(${currentPage - 1})" class="px-3 py-1 bg-gray-700 text-gray-200 rounded hover:bg-gray-600">上一页</button>`;
+            } else {
+                html += `<button disabled class="px-3 py-1 bg-gray-800 text-gray-500 rounded cursor-not-allowed">上一页</button>`;
+            }
+
+            html += `<span class="text-gray-300">第 ${currentPage} / ${totalPages} 页 (共 ${filtered.length} 条)</span>`;
+
+            if (currentPage < totalPages) {
+                html += `<button onclick="changePage(${currentPage + 1})" class="px-3 py-1 bg-gray-700 text-gray-200 rounded hover:bg-gray-600">下一页</button>`;
+            } else {
+                html += `<button disabled class="px-3 py-1 bg-gray-800 text-gray-500 rounded cursor-not-allowed">下一页</button>`;
+            }
+
+            html += '</div>';
+            pagination.innerHTML = html;
+        }
+
+        // 切换页码
+        function changePage(page) {
+            currentPage = page;
+            displayCommands();
+        }
+
+        // Toast通知函数
+        function showToast(message, type = 'success') {
+            const toast = document.createElement('div');
+            const bgColor = type === 'success' ? 'bg-green-500' : type === 'error' ? 'bg-red-500' : 'bg-blue-500';
+            toast.className = `fixed bottom-4 right-4 ${bgColor} text-white px-6 py-3 rounded-lg shadow-lg transform transition-all duration-300 z-50`;
+            toast.textContent = message;
+            document.body.appendChild(toast);
+
+            setTimeout(() => {
+                toast.style.transform = 'translateY(0)';
+            }, 10);
+
+            setTimeout(() => {
+                toast.style.transform = 'translateY(100px)';
+                toast.style.opacity = '0';
+                setTimeout(() => {
+                    toast.remove();
+                }, 300);
+            }, 3000);
+        }
+
+        // 复制命令到剪贴板
+        async function copyCommand(id) {
+            const command = allCommands.find(c => c.id == id);
+            if (command) {
+                try {
+                    await navigator.clipboard.writeText(command.command_text);
+                    showToast('命令已复制到剪贴板', 'success');
+                } catch (error) {
+                    console.error('Error:', error);
+                    showToast('复制命令失败', 'error');
+                }
+            }
+        }
+
+        // 显示编辑模态框
+        async function showEditModal(id) {
+            const command = allCommands.find(c => c.id === id);
+
+            if (command) {
+                document.getElementById('edit-command-id').value = command.id;
+                document.getElementById('command-name').value = command.name || '';
+                document.getElementById('command-type').value = command.command_type || '';
+                document.getElementById('command-text').value = command.command_text || '';
+
+                document.getElementById('modal-title').textContent = '编辑命令';
+                showAddModal();
+            }
+        }
+
+        // 添加或更新命令
+        async function addCommand() {
+            const id = document.getElementById('edit-command-id').value;
+            const name = document.getElementById('command-name').value;
+            const command_type = document.getElementById('command-type').value;
+            const command_text = document.getElementById('command-text').value;
+
+            if (!name || !command_text) {
+                showToast('名称和命令文本为必填项', 'error');
+                return;
+            }
+
+            const token = localStorage.getItem('token');
+
+            try {
+                const isEdit = !!id;
+                const method = isEdit ? 'PUT' : 'POST';
+                const apiUrl = isEdit ? `/api/commands/${id}` : '/api/commands/';
+
+                const response = await fetch(apiUrl, {
+                    method: method,
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        name, command_type, command_text
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showToast(isEdit ? '命令更新成功' : '命令添加成功', 'success');
+                    document.getElementById('add-command-form').reset();
+                    document.getElementById('edit-command-id').value = '';
+                    document.getElementById('modal-title').textContent = '添加新命令';
+                    document.getElementById('add-modal').classList.add('hidden');
+                    fetchCommands();
+                } else {
+                    showToast(`${isEdit ? '更新' : '添加'}命令失败: ${data.message}`, 'error');
+                }
+            } catch (error) {
+                showToast(`发生错误: ${error.message}`, 'error');
+            }
+        }
+
+        // 删除命令
+        async function deleteCommand(id) {
+            if (!confirm('确定要删除这个命令吗？')) {
+                return;
+            }
+
+            const token = localStorage.getItem('token');
+
+            try {
+                const response = await fetch(`/api/commands/${id}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showToast('命令删除成功', 'success');
+                    fetchCommands();
+                } else {
+                    showToast(`删除命令失败: ${data.message}`, 'error');
+                }
+            } catch (error) {
+                showToast(`发生错误: ${error.message}`, 'error');
+            }
+        }
+
+        // 退出登录
+        function logout() {
+            localStorage.removeItem('token');
+            window.location.href = '/auth';
+        }
+
+        // 显示添加命令模态框
+        function showAddModal() {
+            document.getElementById('add-modal').classList.remove('hidden');
+        }
+
+        // 关闭模态框
+        function closeModal() {
+            document.getElementById('add-modal').classList.add('hidden');
+            document.getElementById('add-command-form').reset();
+            document.getElementById('edit-command-id').value = '';
+            document.getElementById('modal-title').textContent = '添加新命令';
+        }
+
+        // 页面加载完成后执行
+        document.addEventListener('DOMContentLoaded', function() {
+            checkAuth();
+
+            document.getElementById('add-command-form').addEventListener('submit', function(e) {
+                e.preventDefault();
+                addCommand();
+            });
+
+            document.getElementById('logout-btn').addEventListener('click', function() {
+                logout();
+            });
+
+            document.getElementById('add-command-btn').addEventListener('click', function() {
+                showAddModal();
+            });
+
+            document.querySelectorAll('.close-modal').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    closeModal();
+                });
+            });
+        });
+    </script>
+</head>
+<body class="bg-gray-900 text-gray-200 min-h-screen">
+    <!-- 命令管理容器 -->
+    <div id="command-container" class="container mx-auto px-4 py-8">
+        <!-- 页面标题和导航 -->
+        <div class="flex justify-between items-center mb-6">
+            <div class="flex items-center space-x-4">
+                <h1 class="text-3xl font-bold text-blue-400">PMER 命令管理器</h1>
+                <div class="flex space-x-2">
+                    <a href="/" class="px-4 py-2 bg-gray-700 text-white rounded hover:bg-gray-600 transition-colors">密码管理</a>
+                    <a href="/commands" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors">命令管理</a>
+                </div>
+            </div>
+            <button id="logout-btn" class="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700">退出登录</button>
+        </div>
+
+        <!-- 主内容区域 -->
+        <div class="flex gap-6">
+            <!-- 左侧类型导航栏 -->
+            <div class="w-64 bg-gray-800 rounded-lg shadow-lg p-4 border border-gray-700 h-fit">
+                <h2 class="text-lg font-semibold text-blue-400 mb-4">命令类型</h2>
+                <ul id="type-list" class="space-y-2">
+                    <!-- 类型列表将通过JavaScript动态生成 -->
+                </ul>
+            </div>
+
+            <!-- 右侧命令列表 -->
+            <div class="flex-1 bg-gray-800 rounded-lg shadow-lg p-6 border border-gray-700">
+                <div class="mb-6">
+                    <button id="add-command-btn" class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">添加新命令</button>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="min-w-full bg-gray-800 border border-gray-700 rounded-lg">
+                        <thead>
+                            <tr class="bg-gray-700 text-left">
+                                <th class="py-3 px-4 font-semibold">名称</th>
+                                <th class="py-3 px-4 font-semibold">类型</th>
+                                <th class="py-3 px-4 font-semibold">命令</th>
+                                <th class="py-3 px-4 font-semibold">创建时间</th>
+                                <th class="py-3 px-4 font-semibold">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="command-list">
+                            <!-- 命令列表将通过JavaScript动态生成 -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- 分页控件 -->
+                <div id="pagination" class="mt-6 flex justify-center">
+                    <!-- 分页控件将通过JavaScript动态生成 -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 添加命令模态框 -->
+    <div id="add-modal" class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center hidden z-50 backdrop-blur-sm">
+        <div class="bg-gray-800 rounded-xl shadow-2xl p-8 max-w-2xl w-full mx-4 border border-gray-600">
+            <div class="flex justify-between items-center mb-6">
+                <h2 id="modal-title" class="text-2xl font-bold text-blue-400">添加新命令</h2>
+                <button class="close-modal text-gray-400 hover:text-white text-3xl leading-none">&times;</button>
+            </div>
+
+            <form id="add-command-form" class="space-y-5">
+                <input type="hidden" id="edit-command-id" value="">
+
+                <div>
+                    <label for="command-name" class="block text-sm font-medium text-gray-300 mb-2">名称 <span class="text-red-400">*</span></label>
+                    <input type="text" id="command-name" class="block w-full px-4 py-3 rounded-lg bg-gray-700 border border-gray-600 text-white shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:ring-opacity-30 transition-colors" required>
+                </div>
+
+                <div>
+                    <label for="command-type" class="block text-sm font-medium text-gray-300 mb-2">类型</label>
+                    <input type="text" id="command-type" placeholder="如: bash, docker, git 等" class="block w-full px-4 py-3 rounded-lg bg-gray-700 border border-gray-600 text-white shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:ring-opacity-30 transition-colors">
+                </div>
+
+                <div>
+                    <label for="command-text" class="block text-sm font-medium text-gray-300 mb-2">命令文本 <span class="text-red-400">*</span></label>
+                    <textarea id="command-text" rows="6" class="block w-full px-4 py-3 rounded-lg bg-gray-700 border border-gray-600 text-white shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:ring-opacity-30 transition-colors font-mono text-sm" required></textarea>
+                </div>
+
+                <div class="flex justify-end gap-3 mt-4">
+                    <button type="button" class="close-modal px-6 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 transition-colors">取消</button>
+                    <button type="submit" class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors">保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</body>
+</html>

@@ -7,7 +7,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 
 class User(db.Model):
     __tablename__ = 'users'
-    
+
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(64), unique=True, nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
@@ -15,9 +15,11 @@ class User(db.Model):
     salt = db.Column(db.String(64), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    
+
     # 关联密码条目
     passwords = db.relationship('Password', backref='owner', lazy='dynamic', cascade='all, delete-orphan')
+    # 关联命令条目
+    commands = db.relationship('Command', backref='owner', lazy='dynamic', cascade='all, delete-orphan')
     
     def __init__(self, username, email, password):
         self.username = username
@@ -87,3 +89,33 @@ class Password(db.Model):
             base_dict.update(decrypted_data)
 
         return base_dict
+
+class Command(db.Model):
+    __tablename__ = 'commands'
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(128), nullable=False)  # 命令名称
+    command_type = db.Column(db.String(64))  # 命令类型（如：bash, docker, git等）
+    command_text = db.Column(db.Text, nullable=False)  # 命令文本
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # 外键关联
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+
+    def __init__(self, name, command_type, command_text, user_id):
+        self.name = name
+        self.command_type = command_type
+        self.command_text = command_text
+        self.user_id = user_id
+
+    def to_dict(self):
+        """返回字典形式的命令条目"""
+        return {
+            'id': self.id,
+            'name': self.name,
+            'command_type': self.command_type,
+            'command_text': self.command_text,
+            'created_at': self.created_at.isoformat(),
+            'updated_at': self.updated_at.isoformat()
+        }

@@ -25,10 +25,12 @@ def create_app():
     # 注册蓝图
     from app.auth import auth_bp
     from app.passwords import passwords_bp
+    from app.commands import commands_bp
     from app.routes import main_bp
-    
+
     app.register_blueprint(auth_bp)
     app.register_blueprint(passwords_bp)
+    app.register_blueprint(commands_bp)
     app.register_blueprint(main_bp)
     
     # 创建数据库表
