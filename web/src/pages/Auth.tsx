@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/lib/stores/auth';
 import { authApi } from '@/lib/api/auth';
@@ -11,8 +11,15 @@ import { ThemeToggle } from '@/components/theme-toggle';
 
 export function Auth() {
   const navigate = useNavigate();
-  const { setAuth } = useAuthStore();
+  const { setAuth, isAuthenticated } = useAuthStore();
   const [isLogin, setIsLogin] = useState(true);
+
+  // 监听认证状态变化，自动跳转
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate('/', { replace: true });
+    }
+  }, [isAuthenticated, navigate]);
   const [formData, setFormData] = useState({
     username: '',
     email: '',
@@ -35,16 +42,29 @@ export function Auth() {
       if (isLogin) {
         const response = await authApi.login(formData.username, formData.password);
 
-        if (response.requires_2fa) {
+        // 检查是否需要设置 2FA
+        if (response.requires_2fa_setup) {
+          // 保存临时 token 到 localStorage
+          const tempToken = response.temp_token || response.token;
+          if (tempToken) {
+            localStorage.setItem('temp_token', tempToken);
+          }
+          toast.info('需要先设置双因素认证');
+          navigate('/setup-2fa', { replace: true });
+        }
+        // 检查是否需要输入 2FA 验证码
+        else if (response.requires_2fa) {
           setTempToken(response.token || '');
           setShowTwoFactor(true);
           toast.info('请输入双因素认证码');
-        } else {
+        }
+        // 正常登录
+        else {
           const token = response.access_token || response.token;
           if (token && response.user) {
             setAuth(response.user, token);
             toast.success('登录成功');
-            navigate('/');
+            // useEffect 会自动处理跳转
           }
         }
       } else {
@@ -71,7 +91,7 @@ export function Auth() {
       if (token && response.user) {
         setAuth(response.user, token);
         toast.success('验证成功');
-        navigate('/');
+        // useEffect 会自动处理跳转
       }
     } catch (error: any) {
       toast.error(error.message || '验证失败');

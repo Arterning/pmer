@@ -18,7 +18,9 @@ export function SetupTwoFactor() {
   const [password, setPassword] = useState('');
 
   useEffect(() => {
-    if (!isAuthenticated) {
+    // 检查是否有 temp_token 或已认证
+    const tempToken = localStorage.getItem('temp_token');
+    if (!isAuthenticated && !tempToken) {
       navigate('/auth');
     } else {
       setup2FA();

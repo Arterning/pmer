@@ -57,11 +57,7 @@ function App() {
           />
           <Route
             path="/setup-2fa"
-            element={
-              <ProtectedRoute>
-                <SetupTwoFactor />
-              </ProtectedRoute>
-            }
+            element={<SetupTwoFactor />}
           />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

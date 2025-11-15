@@ -28,9 +28,11 @@ export interface User {
 export interface AuthResponse {
   access_token?: string;
   token?: string;
+  temp_token?: string;
   user?: User;
   message?: string;
   requires_2fa?: boolean;
+  requires_2fa_setup?: boolean;
 }
 
 export interface PasswordsResponse {
