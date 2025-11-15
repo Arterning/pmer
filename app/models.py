@@ -13,6 +13,8 @@ class User(db.Model):
     email = db.Column(db.String(120), unique=True, nullable=False)
     password_hash = db.Column(db.String(256), nullable=False)
     salt = db.Column(db.String(64), nullable=False)
+    two_factor_secret = db.Column(db.String(128))  # 2FA密钥
+    two_factor_enabled = db.Column(db.Boolean, default=False)  # 是否启用2FA
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -51,6 +53,7 @@ class User(db.Model):
             'id': self.id,
             'username': self.username,
             'email': self.email,
+            'two_factor_enabled': self.two_factor_enabled,
             'created_at': self.created_at.isoformat(),
             'updated_at': self.updated_at.isoformat()
         }
