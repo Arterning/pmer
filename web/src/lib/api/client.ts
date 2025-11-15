@@ -1,6 +1,4 @@
 import { API_BASE_URL } from '../utils/config';
-import { authStore } from '../stores/auth';
-import { get } from 'svelte/store';
 
 export class ApiClient {
   private baseUrl: string;
@@ -14,9 +12,13 @@ export class ApiClient {
       'Content-Type': 'application/json',
     };
 
-    const { token } = get(authStore);
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
+    // 优先使用临时token（用于2FA设置），否则使用正式token
+    const tempToken = localStorage.getItem('temp_token');
+    const token = localStorage.getItem('token');
+
+    const authToken = tempToken || token;
+    if (authToken) {
+      headers['Authorization'] = `Bearer ${authToken}`;
     }
 
     return headers;

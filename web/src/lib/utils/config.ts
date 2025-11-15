@@ -8,6 +8,10 @@ export const API_ENDPOINTS = {
     login: '/api/auth/login',
     profile: '/api/auth/profile',
     changePassword: '/api/auth/change-password',
+    setup2FA: '/api/auth/setup-2fa',
+    enable2FA: '/api/auth/enable-2fa',
+    disable2FA: '/api/auth/disable-2fa',
+    verify2FA: '/api/auth/verify-2fa',
   },
   // 密码相关
   passwords: {

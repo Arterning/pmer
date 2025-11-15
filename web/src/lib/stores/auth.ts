@@ -1,49 +1,33 @@
-import { writable } from 'svelte/store';
+import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 import type { User } from '../types';
 
 interface AuthState {
   user: User | null;
   token: string | null;
   isAuthenticated: boolean;
+  setAuth: (user: User, token: string) => void;
+  logout: () => void;
 }
 
-function createAuthStore() {
-  // 从localStorage加载初始状态
-  const storedToken = localStorage.getItem('token');
-  const initialState: AuthState = {
-    user: null,
-    token: storedToken,
-    isAuthenticated: !!storedToken,
-  };
-
-  const { subscribe, set, update } = writable<AuthState>(initialState);
-
-  return {
-    subscribe,
-    login: (token: string, user: User) => {
-      localStorage.setItem('token', token);
-      update(state => ({
-        ...state,
-        token,
-        user,
-        isAuthenticated: true,
-      }));
-    },
-    logout: () => {
-      localStorage.removeItem('token');
-      set({
-        user: null,
-        token: null,
-        isAuthenticated: false,
-      });
-    },
-    setUser: (user: User) => {
-      update(state => ({
-        ...state,
-        user,
-      }));
-    },
-  };
-}
-
-export const authStore = createAuthStore();
+export const useAuthStore = create<AuthState>()(
+  persist(
+    (set) => ({
+      user: null,
+      token: null,
+      isAuthenticated: false,
+      setAuth: (user, token) => {
+        localStorage.setItem('token', token);
+        set({ user, token, isAuthenticated: true });
+      },
+      logout: () => {
+        localStorage.removeItem('token');
+        localStorage.removeItem('temp_token');
+        set({ user: null, token: null, isAuthenticated: false });
+      },
+    }),
+    {
+      name: 'auth-storage',
+    }
+  )
+);

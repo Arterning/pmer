@@ -28,4 +28,23 @@ export const authApi = {
       new_password: newPassword,
     });
   },
+
+  async setup2FA(): Promise<{ message: string; secret: string; qr_code: string; uri: string }> {
+    return apiClient.post(API_ENDPOINTS.auth.setup2FA);
+  },
+
+  async enable2FA(code: string, password?: string): Promise<{ message: string; token?: string; user?: User; auto_login?: boolean }> {
+    return apiClient.post(API_ENDPOINTS.auth.enable2FA, { code, password });
+  },
+
+  async disable2FA(code: string): Promise<{ message: string }> {
+    return apiClient.post(API_ENDPOINTS.auth.disable2FA, { code });
+  },
+
+  async verify2FA(tempToken: string, code: string): Promise<AuthResponse> {
+    return apiClient.post(API_ENDPOINTS.auth.verify2FA, {
+      temp_token: tempToken,
+      code,
+    });
+  },
 };
